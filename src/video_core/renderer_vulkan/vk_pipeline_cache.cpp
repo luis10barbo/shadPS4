@@ -248,6 +248,29 @@ void PipelineCache::RefreshGraphicsKey() {
     }
 }
 
+void PipelineCache::RefreshPrograms() {
+    auto& regs = liverpool->regs;
+    auto& key = graphics_key;
+
+    for (u32 i = 0; i < MaxShaderStages; i++) {
+        if (!regs.stage_enable.IsStageEnabled(i)) {
+            key.stage_hashes[i] = 0;
+            continue;
+        }
+        auto* pgm = regs.ProgramForStage(i);
+        if (!pgm || !pgm->Address<u32*>()) {
+            key.stage_hashes[i] = 0;
+            continue;
+        }
+        const auto* bininfo = Liverpool::GetBinaryInfo(*pgm);
+        if (!bininfo->Valid()) {
+            key.stage_hashes[i] = 0;
+            continue;
+        }
+        key.stage_hashes[i] = bininfo->shader_hash;
+    }
+}
+
 std::unique_ptr<GraphicsPipeline> PipelineCache::CreateGraphicsPipeline() {
     const auto& regs = liverpool->regs;
 
@@ -280,8 +303,11 @@ std::unique_ptr<GraphicsPipeline> PipelineCache::CreateGraphicsPipeline() {
             DumpShader(code, hash, stage, "bin");
         }
 
-        block_pool.ReleaseContents();
-        inst_pool.ReleaseContents();
+        if (hash == 0x8ccd4c7 || hash == 3273382176 || hash == 1253917491 || hash == 3568414570 ||
+            hash == 886182625 || hash == 2876255299 || hash == 2153234908 || hash == 0xc0cbc309 ||
+            hash == 0xe0305cef || hash == 2251599991 || hash == 0x4d1dd4a5 || hash == 0x18dce231) {
+            return nullptr;
+        }
 
         if (stage != Shader::Stage::Fragment && stage != Shader::Stage::Vertex) {
             LOG_ERROR(Render_Vulkan, "Unsupported shader stage {}. PL creation skipped.", stage);
@@ -339,6 +365,17 @@ std::unique_ptr<ComputePipeline> PipelineCache::CreateComputePipeline() {
     const auto& cs_pgm = liverpool->regs.cs_program;
     const auto code = cs_pgm.Code();
 
+    if (compute_key == 0xa509af23 || compute_key == 0x4ca76892 || compute_key == 0xa954e79d) {
+        return nullptr;
+    }
+
+    auto it = program_cache.find(compute_key);
+    if (it != program_cache.end()) {
+        const Program* program = it.value().get();
+        return std::make_unique<ComputePipeline>(instance, scheduler, *pipeline_cache, compute_key,
+                                                 program);
+    }
+
     // Dump shader code if requested.
     if (Config::dumpShaders()) {
         DumpShader(code, compute_key, Shader::Stage::Compute, "bin");
@@ -346,6 +383,10 @@ std::unique_ptr<ComputePipeline> PipelineCache::CreateComputePipeline() {
 
     block_pool.ReleaseContents();
     inst_pool.ReleaseContents();
+
+    if (compute_key == 0xa509af23 || compute_key == 0x4ca76892 || compute_key == 0xa954e79d) {
+        return nullptr;
+    }
 
     // Recompile shader to IR.
     try {
