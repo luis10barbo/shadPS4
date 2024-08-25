@@ -26,6 +26,7 @@ VK_DEFINE_HANDLE(VmaAllocator)
 namespace VideoCore {
 
 enum ImageFlagBits : u32 {
+    CpuModified = 1 << 2, ///< Contents have been modified from the CPU
     GpuModified = 1 << 3,    ///< Contents have been modified from the GPU
     Tracked = 1 << 4,        ///< Writes and reads are being hooked from the CPU
     Registered = 1 << 6,     ///< True when the image is registered
