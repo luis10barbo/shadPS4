@@ -307,7 +307,7 @@ std::unique_ptr<GraphicsPipeline> PipelineCache::CreateGraphicsPipeline() {
             hash == 886182625 || hash == 2876255299 || hash == 2153234908 || hash == 0xc0cbc309 ||
             hash == 0xe0305cef || hash == 2251599991 || hash == 0x4d1dd4a5 || hash == 0x18dce231 ||
             hash == 0x7feaf794 || hash == 0x6d77bb80 || hash == 0x5d338f1c || hash == 0xafa79bfe ||
-            hash == 0xddfbac23 || hash == 0xc3080cd2) {
+            hash == 0xddfbac23 || hash == 0xc3080cd2 || hash == 0x981be89b || hash == 0x62b48c54) {
             return nullptr;
         }
 
