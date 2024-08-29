@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <utility>
 #include <vector>
 #include "common/types.h"
@@ -29,6 +30,15 @@ enum class MemoryUsage {
     Download,    ///< Requires a host visible memory type optimized for GPU to CPU readbacks
     Stream,      ///< Requests device local host visible buffer, falling back host memory.
 };
+
+constexpr vk::BufferUsageFlags ReadFlags =
+    vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eUniformTexelBuffer |
+    vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eIndexBuffer |
+    vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eIndirectBuffer;
+
+constexpr vk::BufferUsageFlags AllFlags = ReadFlags | vk::BufferUsageFlagBits::eTransferDst |
+                                          vk::BufferUsageFlagBits::eStorageTexelBuffer |
+                                          vk::BufferUsageFlagBits::eStorageBuffer;
 
 struct UniqueBuffer {
     explicit UniqueBuffer(vk::Device device, VmaAllocator allocator);
@@ -64,7 +74,7 @@ struct UniqueBuffer {
 class Buffer {
 public:
     explicit Buffer(const Vulkan::Instance& instance, MemoryUsage usage, VAddr cpu_addr_,
-                    u64 size_bytes_);
+                    vk::BufferUsageFlags flags, u64 size_bytes_);
 
     Buffer& operator=(const Buffer&) = delete;
     Buffer(const Buffer&) = delete;
@@ -72,7 +82,8 @@ public:
     Buffer& operator=(Buffer&&) = default;
     Buffer(Buffer&&) = default;
 
-    vk::BufferView View(u32 offset, u32 size, AmdGpu::DataFormat dfmt, AmdGpu::NumberFormat nfmt);
+    vk::BufferView View(u32 offset, u32 size, bool is_written, AmdGpu::DataFormat dfmt,
+                        AmdGpu::NumberFormat nfmt);
 
     /// Increases the likeliness of this being a stream buffer
     void IncreaseStreamScore(int score) noexcept {
@@ -120,6 +131,7 @@ public:
     struct BufferView {
         u32 offset;
         u32 size;
+        bool is_written;
         AmdGpu::DataFormat dfmt;
         AmdGpu::NumberFormat nfmt;
         vk::BufferView handle;
