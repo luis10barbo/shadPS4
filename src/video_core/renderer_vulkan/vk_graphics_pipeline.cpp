@@ -322,7 +322,7 @@ void GraphicsPipeline::BuildDescSetLayout() {
                 .descriptorType = tex_buffer.is_written ? vk::DescriptorType::eStorageTexelBuffer
                                                         : vk::DescriptorType::eUniformTexelBuffer,
                 .descriptorCount = 1,
-                .stageFlags = vk::ShaderStageFlagBits::eCompute,
+                .stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
             });
         }
         for (const auto& image : stage->images) {
@@ -412,7 +412,7 @@ void GraphicsPipeline::BindResources(const Liverpool::Regs& regs,
                 const u32 size = vsharp.GetSize();
                 const u32 alignment = instance.TexelBufferMinAlignment();
                 const auto [vk_buffer, offset] =
-                    buffer_cache.ObtainBuffer(address, size, tex_buffer.is_written);
+                    buffer_cache.ObtainBuffer(address, size, tex_buffer.is_written, true);
                 const u32 fmt_stride = AmdGpu::NumBits(vsharp.GetDataFmt()) >> 3;
                 ASSERT_MSG(fmt_stride == vsharp.GetStride(),
                            "Texel buffer stride must match format stride");
@@ -422,7 +422,7 @@ void GraphicsPipeline::BindResources(const Liverpool::Regs& regs,
                     ASSERT(adjust % fmt_stride == 0);
                     push_data.AddOffset(binding, adjust / fmt_stride);
                 }
-                buffer_view = vk_buffer->View(offset, size + adjust, tex_buffer.is_written,
+                buffer_view = vk_buffer->View(offset_aligned, size + adjust, tex_buffer.is_written,
                                               vsharp.GetDataFmt(), vsharp.GetNumberFmt());
             }
             set_writes.push_back({
