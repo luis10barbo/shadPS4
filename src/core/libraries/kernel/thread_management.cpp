@@ -4,6 +4,7 @@
 #include <mutex>
 #include <semaphore>
 #include <thread>
+
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "common/error.h"
@@ -994,8 +995,8 @@ static void* run_thread(void* arg) {
     auto* thread = static_cast<ScePthread>(arg);
     Common::SetCurrentThreadName(thread->name.c_str());
     auto* linker = Common::Singleton<Core::Linker>::Instance();
-    linker->InitTlsForThread(false);
     Core::InitializeThreadPatchStack();
+    linker->InitTlsForThread(false);
     void* ret = nullptr;
     g_pthread_self = thread;
     pthread_cleanup_push(cleanup_thread, thread);
