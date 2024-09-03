@@ -311,6 +311,11 @@ void Translator::EmitVectorAlu(const GcnInst& inst) {
         return V_MBCNT_U32_B32(false, inst);
     case Opcode::V_NOP:
         return;
+
+    case Opcode::V_BFM_B32:
+        return V_BFM_B32(inst);
+    case Opcode::V_FFBH_U32:
+        return V_FFBH_U32(inst);
     default:
         LogMissingOpcode(inst);
     }
@@ -474,10 +479,11 @@ void Translator::V_ADD_F32(const GcnInst& inst) {
 void Translator::V_CVT_OFF_F32_I4(const GcnInst& inst) {
     const IR::U32 src0{GetSrc(inst.src[0])};
     const IR::VectorReg dst_reg{inst.dst[0].code};
-    ir.SetVectorReg(
-        dst_reg,
-        ir.FPMul(ir.ConvertUToF(32, 32, ir.ISub(ir.BitwiseAnd(src0, ir.Imm32(0xF)), ir.Imm32(8))),
-                 ir.Imm32(1.f / 16.f)));
+    ASSERT(src0.IsImmediate());
+    static constexpr std::array IntToFloat = {
+        0.0f,     0.0625f,  0.1250f,  0.1875f,  0.2500f,  0.3125f,  0.3750f,  0.4375f,
+        -0.5000f, -0.4375f, -0.3750f, -0.3125f, -0.2500f, -0.1875f, -0.1250f, -0.0625f};
+    ir.SetVectorReg(dst_reg, ir.Imm32(IntToFloat[src0.U32()]));
 }
 
 void Translator::V_MED3_F32(const GcnInst& inst) {
@@ -962,6 +968,26 @@ void Translator::V_MBCNT_U32_B32(bool is_low, const GcnInst& inst) {
     }
     ASSERT(src0.IsImmediate() && src0.U32() == ~0U);
     SetDst(inst.dst[0], ir.LaneId());
+}
+
+void Translator::V_BFM_B32(const GcnInst& inst) {
+    // bitmask width
+    const IR::U32 src0{ir.BitFieldExtract(GetSrc(inst.src[0]), ir.Imm32(0), ir.Imm32(4))};
+    // bitmask offset
+    const IR::U32 src1{ir.BitFieldExtract(GetSrc(inst.src[1]), ir.Imm32(0), ir.Imm32(4))};
+    const IR::U32 ones = ir.ISub(ir.ShiftLeftLogical(ir.Imm32(1), src0), ir.Imm32(1));
+    SetDst(inst.dst[0], ir.ShiftLeftLogical(ones, src1));
+}
+
+void Translator::V_FFBH_U32(const GcnInst& inst) {
+    const IR::U32 src0{GetSrc(inst.src[0])};
+    // Gcn wants the MSB position counting from the left, but SPIR-V counts from the rightmost (LSB)
+    // position
+    const IR::U32 msb_pos = ir.FindUMsb(src0);
+    const IR::U32 pos_from_left = ir.ISub(ir.Imm32(31), msb_pos);
+    // Select 0xFFFFFFFF if src0 was 0
+    const IR::U1 cond = ir.INotEqual(src0, ir.Imm32(0));
+    SetDst(inst.dst[0], IR::U32{ir.Select(cond, pos_from_left, ir.Imm32(~0U))});
 }
 
 } // namespace Shader::Gcn

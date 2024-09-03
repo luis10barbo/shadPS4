@@ -4,7 +4,7 @@
 #include <algorithm>
 #include "common/alignment.h"
 #include "common/scope_exit.h"
-#include "shader_recompiler/runtime_info.h"
+#include "shader_recompiler/info.h"
 #include "video_core/amdgpu/liverpool.h"
 #include "video_core/buffer_cache/buffer_cache.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
@@ -230,7 +230,6 @@ u32 BufferCache::BindIndexBuffer(bool& is_indexed, u32 index_offset) {
 
 std::pair<Buffer*, u32> BufferCache::ObtainBuffer(VAddr device_addr, u32 size, bool is_written,
                                                   bool is_texel_buffer) {
-    std::scoped_lock lk{mutex};
     static constexpr u64 StreamThreshold = CACHING_PAGESIZE;
     const bool is_gpu_dirty = memory_tracker.IsRegionGpuModified(device_addr, size);
     if (!is_written && !is_texel_buffer && size <= StreamThreshold && !is_gpu_dirty) {
@@ -461,6 +460,7 @@ void BufferCache::ChangeRegister(BufferId buffer_id) {
 }
 
 bool BufferCache::SynchronizeBuffer(Buffer& buffer, VAddr device_addr, u32 size) {
+    std::scoped_lock lk{mutex};
     boost::container::small_vector<vk::BufferCopy, 4> copies;
     u64 total_size_bytes = 0;
     u64 largest_copy = 0;

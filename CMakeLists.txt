@@ -17,6 +17,18 @@ endif()
 
 project(shadPS4)
 
+# Forcing PIE makes sure that the base address is high enough so that it doesn't clash with the PS4 memory.
+if(UNIX AND NOT APPLE)
+    set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+
+    # check PIE support at link time
+    include(CheckPIESupported)
+    check_pie_supported(OUTPUT_VARIABLE pie_check LANGUAGES C CXX)
+    if(NOT CMAKE_C_LINK_PIE_SUPPORTED OR NOT CMAKE_CXX_LINK_PIE_SUPPORTED)
+        message(WARNING "PIE is not supported at link time: ${pie_check}")
+    endif()
+endif()
+
 option(ENABLE_QT_GUI "Enable the Qt GUI. If not selected then the emulator uses a minimal SDL-based UI instead" OFF)
 
 # This function should be passed a list of all files in a target. It will automatically generate file groups
@@ -151,7 +163,7 @@ set(GNM_LIB src/core/libraries/gnmdriver/gnmdriver.cpp
             src/core/libraries/gnmdriver/gnm_error.h
 )
 
-set(KERNEL_LIB 
+set(KERNEL_LIB
                src/core/libraries/kernel/event_flag/event_flag.cpp
                src/core/libraries/kernel/event_flag/event_flag.h
                src/core/libraries/kernel/event_flag/event_flag_obj.cpp
@@ -347,7 +359,7 @@ set(CORE src/core/aerolib/stubs.cpp
          src/core/cpu_patches.cpp
          src/core/cpu_patches.h
          src/core/crypto/crypto.cpp
-         src/core/crypto/crypto.h 
+         src/core/crypto/crypto.h
          src/core/crypto/keys.h
          src/core/file_format/pfs.h
          src/core/file_format/pkg.cpp
@@ -372,7 +384,7 @@ set(CORE src/core/aerolib/stubs.cpp
          src/core/loader/elf.h
          src/core/loader/symbols_resolver.h
          src/core/loader/symbols_resolver.cpp
-         src/core/libraries/error_codes.h  
+         src/core/libraries/error_codes.h
          src/core/libraries/libs.h
          src/core/libraries/libs.cpp
          ${AUDIO_LIB}
@@ -407,7 +419,10 @@ set(SHADER_RECOMPILER src/shader_recompiler/exception.h
                       src/shader_recompiler/profile.h
                       src/shader_recompiler/recompiler.cpp
                       src/shader_recompiler/recompiler.h
+                      src/shader_recompiler/info.h
+                      src/shader_recompiler/params.h
                       src/shader_recompiler/runtime_info.h
+                      src/shader_recompiler/specialization.h
                       src/shader_recompiler/backend/spirv/emit_spirv.cpp
                       src/shader_recompiler/backend/spirv/emit_spirv.h
                       src/shader_recompiler/backend/spirv/emit_spirv_atomic.cpp
@@ -521,8 +536,6 @@ set(VIDEO_CORE src/video_core/amdgpu/liverpool.cpp
                src/video_core/renderer_vulkan/vk_resource_pool.h
                src/video_core/renderer_vulkan/vk_scheduler.cpp
                src/video_core/renderer_vulkan/vk_scheduler.h
-               src/video_core/renderer_vulkan/vk_shader_cache.cpp
-               src/video_core/renderer_vulkan/vk_shader_cache.h
                src/video_core/renderer_vulkan/vk_shader_util.cpp
                src/video_core/renderer_vulkan/vk_shader_util.h
                src/video_core/renderer_vulkan/vk_swapchain.cpp
@@ -635,12 +648,17 @@ target_link_libraries(shadps4 PRIVATE magic_enum::magic_enum fmt::fmt toml11::to
 target_link_libraries(shadps4 PRIVATE Boost::headers GPUOpen::VulkanMemoryAllocator sirit Vulkan::Headers xxHash::xxhash Zydis::Zydis glslang::SPIRV glslang::glslang SDL3::SDL3)
 
 if (APPLE)
-  # Reserve system-managed memory space.
-  target_link_options(shadps4 PRIVATE -Wl,-no_pie,-no_fixup_chains,-no_huge,-pagezero_size,0x400000,-segaddr,GUEST_SYSTEM,0x400000,-image_base,0x20000000000)
+  option(USE_SYSTEM_VULKAN_LOADER "Enables using the system Vulkan loader instead of directly linking with MoltenVK. Useful for loading validation layers." OFF)
+  if (USE_SYSTEM_VULKAN_LOADER)
+      target_compile_definitions(shadps4 PRIVATE USE_SYSTEM_VULKAN_LOADER=1)
+  else()
+      # Link MoltenVK for Vulkan support
+      find_library(MOLTENVK MoltenVK REQUIRED)
+      target_link_libraries(shadps4 PRIVATE ${MOLTENVK})
+  endif()
 
-  # Link MoltenVK for Vulkan support
-  find_library(MOLTENVK MoltenVK REQUIRED)
-  target_link_libraries(shadps4 PRIVATE ${MOLTENVK})
+  # Reserve system-managed memory space.
+  target_link_options(shadps4 PRIVATE -Wl,-no_pie,-no_fixup_chains,-no_huge,-pagezero_size,0x4000,-segaddr,TCB_SPACE,0x4000,-segaddr,GUEST_SYSTEM,0x400000,-image_base,0x20000000000)
 
   # Replacement for std::chrono::time_zone
   target_link_libraries(shadps4 PRIVATE date::date-tz)
@@ -724,4 +742,11 @@ if (ENABLE_QT_GUI)
 
     set_source_files_properties(src/images/shadPS4.icns PROPERTIES
         MACOSX_PACKAGE_LOCATION Resources)
+endif()
+
+if (UNIX AND NOT APPLE)
+    if (ENABLE_QT_GUI)
+        find_package(OpenSSL REQUIRED)
+        target_link_libraries(shadps4 PRIVATE ${OPENSSL_LIBRARIES})
+    endif()
 endif()
