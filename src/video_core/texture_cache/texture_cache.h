@@ -26,7 +26,7 @@ class PageManager;
 enum class FindFlags {
     NoCreate = 1 << 0,  ///< Do not create an image if searching for one fails.
     RelaxDim = 1 << 1,  ///< Do not check the dimentions of image, only address.
-    ExactSize = 1 << 2, ///< Check that the size of image must match exactly.
+    FullOverlap = 1 << 2, ///< Check that the image is entirely contained in the range.
 };
 DECLARE_ENUM_FLAG_OPERATORS(FindFlags)
 
