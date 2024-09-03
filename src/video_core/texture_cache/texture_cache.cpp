@@ -292,15 +292,8 @@ void TextureCache::RefreshImage(Image& image, Vulkan::Scheduler* custom_schedule
 
     const VAddr image_addr = image.info.guest_address;
     const size_t image_size = image.info.guest_size_bytes;
-    vk::Buffer buffer{};
-    u32 offset{};
-    if (auto upload_buffer = tile_manager.TryDetile(image); upload_buffer) {
-        buffer = *upload_buffer;
-    } else {
-        const auto [vk_buffer, buf_offset] = buffer_cache.ObtainTempBuffer(image_addr, image_size);
-        buffer = vk_buffer->Handle();
-        offset = buf_offset;
-    }
+    const auto [vk_buffer, buf_offset] = buffer_cache.ObtainTempBuffer(image_addr, image_size);
+    const auto [buffer, offset] = tile_manager.TryDetile(vk_buffer->Handle(), buf_offset, image);
 
     for (auto& copy : image_copy) {
         copy.bufferOffset += offset;
