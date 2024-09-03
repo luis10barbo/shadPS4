@@ -206,9 +206,9 @@ ImageInfo::ImageInfo(const AmdGpu::Image& image, bool is_depth) noexcept {
     is_depth |= tiling_mode == AmdGpu::TilingMode::Depth_MacroTiled;
     if (is_depth) {
         if (pixel_format == vk::Format::eR32Sfloat) {
-            pixel_format = vk::Format::eD32Sfloat;
+            pixel_format = vk::Format::eD32SfloatS8Uint;
         } else if (pixel_format == vk::Format::eR16Sfloat) {
-            pixel_format = vk::Format::eD16Unorm;
+            pixel_format = vk::Format::eD16UnormS8Uint;
         } else {
             UNREACHABLE();
         }
