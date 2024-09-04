@@ -21,9 +21,9 @@ namespace Vulkan {
 
 class Instance {
 public:
-    explicit Instance(bool validation = false, bool dump_command_buffers = false);
+    explicit Instance(bool validation = false, bool crash_diagnostic = false);
     explicit Instance(Frontend::WindowSDL& window, s32 physical_device_index,
-                      bool enable_validation = false);
+                      bool enable_validation = false, bool enable_crash_diagnostic = false);
     ~Instance();
 
     /// Returns a formatted string for the driver version
@@ -82,10 +82,6 @@ public:
         return profiler_context;
     }
 
-    bool HasNvCheckpoints() const {
-        return has_nv_checkpoints;
-    }
-
     /// Returns true when a known debugging tool is attached.
     bool HasDebuggingToolAttached() const {
         return has_renderdoc || has_nsight_graphics;
@@ -119,6 +115,11 @@ public:
     /// Returns true when VK_EXT_external_memory_host is supported
     bool IsExternalMemoryHostSupported() const {
         return external_memory_host;
+    }
+
+    /// Returns true when VK_EXT_depth_clip_control is supported
+    bool IsDepthClipControlSupported() const {
+        return depth_clip_control;
     }
 
     /// Returns true when VK_EXT_color_write_enable is supported
@@ -261,6 +262,7 @@ private:
     bool fragment_shader_barycentric{};
     bool shader_stencil_export{};
     bool external_memory_host{};
+    bool depth_clip_control{};
     bool workgroup_memory_explicit_layout{};
     bool color_write_en{};
     bool vertex_input_dynamic_state{};
@@ -270,7 +272,6 @@ private:
     bool debug_utils_supported{};
     bool has_nsight_graphics{};
     bool has_renderdoc{};
-    bool has_nv_checkpoints{};
 };
 
 } // namespace Vulkan
