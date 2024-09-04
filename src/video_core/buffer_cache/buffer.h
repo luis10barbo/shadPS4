@@ -73,8 +73,9 @@ struct UniqueBuffer {
 
 class Buffer {
 public:
-    explicit Buffer(const Vulkan::Instance& instance, MemoryUsage usage, VAddr cpu_addr_,
-                    vk::BufferUsageFlags flags, u64 size_bytes_);
+    explicit Buffer(const Vulkan::Instance& instance, Vulkan::Scheduler& scheduler,
+                    MemoryUsage usage, VAddr cpu_addr_, vk::BufferUsageFlags flags,
+                    u64 size_bytes_);
 
     Buffer& operator=(const Buffer&) = delete;
     Buffer(const Buffer&) = delete;
@@ -125,18 +126,10 @@ public:
     int stream_score = 0;
     size_t size_bytes = 0;
     std::span<u8> mapped_data;
-    const Vulkan::Instance* instance{};
+    const Vulkan::Instance* instance;
+    Vulkan::Scheduler* scheduler;
     MemoryUsage usage;
     UniqueBuffer buffer;
-    struct BufferView {
-        u32 offset;
-        u32 size;
-        bool is_written;
-        AmdGpu::DataFormat dfmt;
-        AmdGpu::NumberFormat nfmt;
-        vk::UniqueBufferView handle;
-    };
-    std::vector<BufferView> views;
 };
 
 class StreamBuffer : public Buffer {
@@ -175,7 +168,6 @@ private:
     void WaitPendingOperations(u64 requested_upper_bound);
 
 private:
-    Vulkan::Scheduler& scheduler;
     u64 offset{};
     u64 mapped_size{};
     std::vector<Watch> current_watches;
