@@ -544,11 +544,13 @@ bool BufferCache::SynchronizeBufferFromImage(Buffer& buffer, VAddr device_addr, 
     boost::container::small_vector<ImageId, 8> image_ids;
     size = std::min(size, MaxInvalidateDist);
     texture_cache.ForEachImageInRegion(device_addr, size, [&](ImageId image_id, Image& image) {
+        // Only consider GPU modified images, i.e render targets or storage images.
+        // Also avoid any CPU modified images as the image data is likely to be stale.
         if (True(image.flags & ImageFlagBits::CpuModified) ||
             False(image.flags & ImageFlagBits::GpuModified)) {
             return;
         }
-        if (image.cpu_addr < device_addr || image.cpu_addr > device_addr + size) {
+        if (image.cpu_addr < device_addr || image.cpu_addr_end > device_addr + size) {
             return;
         }
         image_ids.push_back(image_id);
